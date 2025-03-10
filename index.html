@@ -311,9 +311,6 @@ body {
 .note:hover {
   transform: scale(1.02);
 }
-.note.locked {
-  background-color: #2c2c2c;
-}
 .note-content {
   margin: 0;
   padding: 0;
@@ -341,14 +338,6 @@ body {
 .delete-btn:hover {
   background-color: #2c57b5;
   transform: scale(1.1);
-}
-.locked-placeholder {
-  padding: 20px;
-  text-align: center;
-  color: #aaa;
-  font-style: italic;
-  border: 1px dashed #555;
-  border-radius: 4px;
 }
 
 /* ============================
@@ -696,55 +685,6 @@ body {
   color: #e0e0e0;
   text-align: center;
 }
-
-/* ===============================
-   Locked Notes Section
-   =============================== */
-#lockedSection .note-creator {
-  text-align: center;
-  margin-bottom: 20px;
-}
-#lockedSection .note-creator textarea {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #333;
-  border-radius: 4px;
-  resize: vertical;
-  background-color: #333;
-  color: #e0e0e0;
-  font-size: 1em;
-}
-#lockedSection .notes-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-}
-.note.locked {
-  background-color: #2c2c2c;
-}
-.note-content {
-  line-height: 1.2;
-  white-space: pre-wrap;
-}
-
-/* Unlock Button */
-.unlock-btn {
-  display: block;
-  margin: 10px auto 0;
-  padding: 10px 15px;
-  background: linear-gradient(135deg, #2196F3, #21CBF3);
-  color: #121212;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1em;
-  transition: background 0.3s, transform 0.2s;
-}
-.unlock-btn:hover {
-  background: linear-gradient(135deg, #2196F3, #21CBF3);
-  transform: translateY(-2px);
-}
-
 
 /* ===============================
    Media Queries for Responsive Design
@@ -1380,6 +1320,16 @@ body {
             /* Space between items */
             align-items: center; /* Center items vertically */
             min-height: 30px;
+        }
+
+        .locked-message {
+            background-color: #f44336; /* Red background */
+            color: white; /* White text */
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-top: 10px;
+        }
         
   </style>
 </head>
@@ -1397,8 +1347,9 @@ body {
     <div class="note-types">
       <button class="note-type-btn active" onclick="showSection('regular')">Regular</button>
       <button class="note-type-btn" onclick="showSection('checklist')">Checklists</button>
-      <button class="note-type-btn" onclick="showSection('locked')">Locked</button>
+      <button class="note-type-btn" onclick="showSection('lockedNotes')">Locked</button>
       <button class="note-type-btn" onclick="showSection('images')">Images</button>
+      
     </div>
     
     <!-- Regular Notes Section with Notebook Feature -->
@@ -1446,26 +1397,26 @@ body {
     </div>
     
     <!-- Locked Notes Section -->
-    <div class="note-section" id="lockedSection">
-      <div class="note-creator">
-        <textarea id="lockedContent" placeholder="Write your locked note here..."></textarea>
-        <button onclick="createNote('locked')">Lock Note</button>
-        <button class="unlock-btn" onclick="showPasswordPrompt()">Unlock Locked Section</button>
-      </div>
-      <div class="notes-container" id="lockedNotes"></div>
+    <div class="note-section" id="lockedNotesSection">
+        <h1>Locked Notes</h1>
+        <div class="note-creator">
+            <textarea id="lockedNoteContent" placeholder="Write your locked note here..."></textarea>
+            <div class="button-container">
+                <button onclick="saveLockedNote()">Save Note</button>
+                <button onclick="unlockSection()">Unlock Section</button>
+            </div>
+        </div>
+        <div id="lockedNotesContainer" style="display: none;"></div>
     </div>
-    
+  
     <!-- Images Section -->
     <div class="note-section" id="imagesSection"> <!-- Ensure this is a note-section -->
-      
-        <h1>Secured Images </h1>
-        
+        <h1>Secured Images</h1>
         <!-- Authentication Section -->
         <div class="auth-section" id="authSection">
             <input type="password" id="passwordInput" placeholder="Enter your secret password">
             <button onclick="initializeVault()"><i class="fas fa-unlock"></i> Unlock Vault</button>
         </div>
-
         <!-- Main Content -->
         <div id="mainContent" class="hidden">
             <input type="file" id="imageInput" accept="image" multiple hidden onchange="uploadImages()">
@@ -1473,19 +1424,14 @@ body {
                 <i class="fas fa-cloud-upload-alt"></i>
                 Choose Images to Upload
             </button>
-
-            
-
             <div class="gallery" id="gallery"></div>
             <button id="deleteAllBtn" style="position: fixed; top: 20px; right: 20px; margin-bottom: 10px; background: rgb(159, 4, 4); border-radius: 25px; padding: 10px 15px; color: white; border: none; cursor: pointer; z-index: 1000; font-size: 12px;">
                 🗑️ Delete All
             </button>
         </div>
-
         <div class="loading" id="loading">
             <i class="fas fa-spinner"></i> Processing...
         </div>
-
         <!-- Add Modal HTML -->
         <div class="modal" id="imageModal">
             <div class="modal-content">
@@ -1493,15 +1439,7 @@ body {
                 <img id="modalImage" src="" alt="Full size image">
             </div>
         </div>
-      
     </div> <!-- End of Images Section -->
-  
-  
-  <!-- Password Prompt Modal -->
-  <div class="password-prompt" id="passwordPrompt">
-    <input type="password" id="passwordInput" placeholder="Enter password" />
-    <button onclick="unlockSection()">Unlock</button>
-  </div> 
   
   <!-- Include External JS -->
 
@@ -1511,13 +1449,16 @@ body {
     /* ============ Global Variables ============ */
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let currentSection = 'regular';
-let lockedSectionPassword = localStorage.getItem('lockedSectionPassword') || null;
-let lockedSectionUnlocked = false;
 let currentNotebookId = null;
 let editingNoteId = null;
 let currentChecklistGroupId = null;
 
 let lastTapTime = 0; // Variable to store the last tap time
+
+// Global Variables
+let lockedNotes = [];
+let lockedSectionPassword = null;
+let lockedSectionUnlocked = false;
 
 /* ============ Section Switching ============ */
 function showSection(section) {
@@ -1553,17 +1494,6 @@ function createNote(type) {
     note.content = rawContent;
     note.checkedItems = [];
   }
-  if (type === 'locked') {
-    if (!lockedSectionPassword) {
-      lockedSectionPassword = prompt('Set a password for the locked section:');
-      if (lockedSectionPassword) {
-        localStorage.setItem('lockedSectionPassword', lockedSectionPassword);
-      } else {
-        alert("Password is required to create locked notes!");
-        return;
-      }
-    }
-  }
   saveNote(note);
   renderNotes();
   clearInputs(type);
@@ -1578,7 +1508,7 @@ function saveNote(note) {
 function renderNotes() {
   const notes = JSON.parse(localStorage.getItem('notes') || '[]');
   // Update only checklist and locked notes (regular notes are in notebooks)
-  ['checklist', 'locked'].forEach(type => {
+  ['checklist'].forEach(type => {
     const container = document.getElementById(`${type}Notes`);
     if (container) {
       container.innerHTML = notes
@@ -1600,12 +1530,6 @@ function createNoteElement(note) {
         <span>${item}</span>
       </label>
     `).join('');
-  } else if (note.type === 'locked') {
-    if (lockedSectionUnlocked) {
-      content = note.content;
-    } else {
-      content = '<div class="locked-placeholder">This note is locked. Unlock to view.</div>';
-    }
   } else {
     content = note.content.replace(/\n/g, '<br>');
   }
@@ -1629,21 +1553,6 @@ function toggleCheckbox(noteId, itemIndex, newState) {
     note.checkedItems[itemIndex] = newState;
     localStorage.setItem('notes', JSON.stringify(notes));
     renderNotes();
-  }
-}
-
-function showPasswordPrompt() {
-  document.getElementById('passwordPrompt').style.display = 'block';
-}
-
-function unlockSection() {
-  const password = document.getElementById('passwordInput').value;
-  if (password === lockedSectionPassword) {
-    lockedSectionUnlocked = true;
-    document.getElementById('passwordPrompt').style.display = 'none';
-    renderNotes();
-  } else {
-    alert('Wrong password!');
   }
 }
 
@@ -2142,24 +2051,25 @@ function deleteImage(id) {
 
 /* ============ Backup Feature ============ */
 async function exportData() {
-  const images = await loadAllImages(); // Load images before exporting
-  const data = {
-    notes: localStorage.getItem('notes') || null,
-    notebooks: localStorage.getItem('notebooks') || null,
-    checklistGroups: localStorage.getItem('checklistGroups') || null,
-    images: JSON.stringify(images), // Save images as JSON
-    lockedSectionPassword: localStorage.getItem('lockedSectionPassword') || null
-  };
-  const dataStr = JSON.stringify(data, null, 2);
-  const blob = new Blob([dataStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'smart-note-taker-backup.json';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+    const images = await loadAllImages(); // Load images before exporting
+    const data = {
+        notes: localStorage.getItem('notes') || '[]', // Ensure it's a string
+        notebooks: localStorage.getItem('notebooks') || '[]', // Ensure it's a string
+        checklistGroups: localStorage.getItem('checklistGroups') || '[]', // Ensure it's a string
+        images: JSON.stringify(images), // Save images as JSON
+        lockedNotes: JSON.stringify(lockedNotes), // Include locked notes
+        lockedSectionPassword: localStorage.getItem('lockedSectionPassword') || null
+    };
+    const dataStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'smart-note-taker-backup.json';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 }
 
 async function loadAllImages() {
@@ -2179,71 +2089,84 @@ async function loadAllImages() {
 }
 
 function importData(file) {
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = JSON.parse(e.target.result);
-      
-      // Validate the structure of the data
-      if (typeof data.notes === 'string') {
-        localStorage.setItem('notes', data.notes);
-      } else {
-        throw new Error("Invalid notes format");
-      }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // Validate the structure of the data
+            if (typeof data.notes === 'string') {
+                localStorage.setItem('notes', data.notes);
+            } else {
+                throw new Error("Invalid notes format");
+            }
 
-      if (typeof data.notebooks === 'string') {
-        localStorage.setItem('notebooks', data.notebooks);
-      } else {
-        throw new Error("Invalid notebooks format");
-      }
+            if (typeof data.notebooks === 'string') {
+                localStorage.setItem('notebooks', data.notebooks);
+            } else {
+                throw new Error("Invalid notebooks format");
+            }
 
-      if (typeof data.checklistGroups === 'string') {
-        localStorage.setItem('checklistGroups', data.checklistGroups);
-      } else {
-        throw new Error("Invalid checklist groups format");
-      }
+            if (typeof data.checklistGroups === 'string') {
+                localStorage.setItem('checklistGroups', data.checklistGroups);
+            } else {
+                throw new Error("Invalid checklist groups format");
+            }
 
-      if (data.images !== undefined) {
-        const images = JSON.parse(data.images);
-        if (Array.isArray(images)) {
-          images.forEach(image => saveImageToIndexedDB(image)); // Save each image to IndexedDB
-        } else {
-          throw new Error("Invalid images format");
+            if (data.images !== undefined) {
+                const images = JSON.parse(data.images);
+                if (Array.isArray(images)) {
+                    images.forEach(image => saveImageToIndexedDB(image)); // Save each image to IndexedDB
+                } else {
+                    throw new Error("Invalid images format");
+                }
+            }
+
+            // Handle locked notes
+            if (data.lockedNotes !== undefined) {
+                const lockedNotes = JSON.parse(data.lockedNotes);
+                if (Array.isArray(lockedNotes)) {
+                    localStorage.setItem('lockedNotes', JSON.stringify(lockedNotes)); // Save locked notes
+                } else {
+                    throw new Error("Invalid locked notes format");
+                }
+            }
+
+            if (data.lockedSectionPassword !== undefined) {
+                localStorage.setItem('lockedSectionPassword', data.lockedSectionPassword);
+            }
+
+            alert("Data imported successfully! Reloading the page...");
+            location.reload();
+        } catch (err) {
+            alert("Failed to import data: " + err.message);
         }
-      }
-
-      if (data.lockedSectionPassword !== undefined) {
-        localStorage.setItem('lockedSectionPassword', data.lockedSectionPassword);
-      }
-
-      alert("Data imported successfully! Reloading the page...");
-      location.reload();
-    } catch (err) {
-      alert("Failed to import data: " + err.message);
-    }
-  };
-  reader.readAsText(file);
+    };
+    reader.readAsText(file);
 }
 
 /* ============ Initial Loads ============ */
 function initializeApp() {
-  request.onsuccess = function(event) {
-    db = event.target.result; // Assign db to the global variable
-    loadNotebooks();
-    renderNotes();
-    loadChecklistGroups();
-    loadImages(); // Load images when the app initializes
+    request.onsuccess = function(event) {
+        db = event.target.result; // Assign db to the global variable
+        loadNotebooks();
+        renderNotes();
+        loadChecklistGroups();
+        loadImages(); // Load images when the app initializes
 
-    // Restore last opened section
-    const lastSection = localStorage.getItem('lastOpenedSection') || 'regular';
-    showSection(lastSection);
+        // Load locked notes
+        loadLockedNotes(); // Load locked notes from local storage
 
-    // Restore last opened notebook if any
-    const lastNotebook = localStorage.getItem('lastOpenedNotebook');
-    if (lastSection === 'regular' && lastNotebook) {
-      openNotebook(parseInt(lastNotebook));
-    }
-  };
+        // Restore last opened section
+        const lastSection = localStorage.getItem('lastOpenedSection') || 'regular';
+        showSection(lastSection);
+
+        // Restore last opened notebook if any
+        const lastNotebook = localStorage.getItem('lastOpenedNotebook');
+        if (lastSection === 'regular' && lastNotebook) {
+            openNotebook(parseInt(lastNotebook));
+        }
+    };
 }
 
 const VAULT_KEY = 'secureImageVault';
@@ -2791,14 +2714,161 @@ const VAULT_KEY = 'secureImageVault';
                 }
             }
 
-            // Initialize Google Sign-in when page loads
-            window.onload = initGoogleSignIn;
+           
 
+// Function to save a locked note
+function saveLockedNote() {
+    // Check if the section is unlocked
+    if (!lockedSectionUnlocked) {
+        alert('Please unlock the section to save notes.');
+        return; // Exit the function if the section is locked
+    }
 
+    const contentField = document.getElementById('lockedNoteContent');
+    const rawContent = contentField.value.trim();
+    if (!rawContent) {
+        alert('Please enter some content for the locked note.');
+        return;
+    }
+
+    // Check if the password is already set in localStorage
+    if (!localStorage.getItem('lockedSectionPassword')) {
+        // Set password for the first time
+        lockedSectionPassword = prompt('Set a password for the locked notes section:');
+        if (!lockedSectionPassword) {
+            alert('Password cannot be empty.');
+            return;
+        }
+        // Save the password in localStorage
+        localStorage.setItem('lockedSectionPassword', lockedSectionPassword);
+    } else {
+        // Retrieve the password from localStorage
+        lockedSectionPassword = localStorage.getItem('lockedSectionPassword');
+    }
+
+    const note = {
+        id: Date.now(),
+        content: rawContent,
+        timestamp: new Date().toLocaleDateString('en-GB')
+    };
+
+    // Load existing notes before adding the new one
+    loadLockedNotes(); // Ensure we have the latest notes from local storage
+
+    // Push the new note into the existing lockedNotes array
+    lockedNotes.push(note);
+    localStorage.setItem('lockedNotes', JSON.stringify(lockedNotes)); // Save updated notes
+
+    // Clear the input field
+    contentField.value = '';
+
+    // Render the locked notes immediately
+    renderLockedNotes(); // Update the UI to show the new note
+
+    showNotification('Note saved successfully!');
+}
+
+// Function to unlock the section
+function unlockSection() {
+    const password = prompt('Enter the password to unlock the notes:');
+    // Retrieve the password from localStorage
+    const storedPassword = localStorage.getItem('lockedSectionPassword');
+    
+    if (password === storedPassword) {
+        lockedSectionUnlocked = true;
+        renderLockedNotes();
+    } else {
+        alert('Incorrect password!');
+    }
+}
+
+// Function to render locked notes
+function renderLockedNotes() {
+    const container = document.getElementById('lockedNotesContainer');
+    if (lockedSectionUnlocked) {
+        container.style.display = 'block';
+        const notes = JSON.parse(localStorage.getItem('lockedNotes') || '[]');
+        container.innerHTML = notes.map(note => `
+            <div class="note" id="locked-note-${note.id}">
+                <div class="note-content">${note.content}</div>
+                <small>${note.timestamp}</small>
+                <button class="delete-btn" onclick="deleteLockedNote(${note.id})"><i class="fas fa-trash"></i></button>
+            </div>
+        `).join('');
+    } else {
+        // Display a message for each locked note
+        container.style.display = 'block';
+        const notes = JSON.parse(localStorage.getItem('lockedNotes') || '[]');
+        container.innerHTML = notes.map(note => `
+            <div class="note locked-note" id="locked-note-${note.id}">
+                <div class="locked-message">
+                    <p>This note is locked. Unlock the section to view the note.</p>
+                </div>
+                <small>${note.timestamp}</small>
+            </div>
+        `).join('');
+    }
+}
+
+// Function to delete a locked note
+function deleteLockedNote(noteId) {
+    if (!lockedSectionUnlocked) {
+        showNotification('Please unlock the section to delete notes.');
+        return;
+    }
+
+    // Load existing locked notes to ensure we have the latest data
+    loadLockedNotes();
+
+    // Find the index of the note to delete
+    const noteIndex = lockedNotes.findIndex(note => note.id === noteId);
+
+    // Check if the note exists
+    if (noteIndex !== -1) {
+        // Confirm deletion
+        if (confirm('Are you sure you want to delete this locked note? This action cannot be undone.')) {
+            // Remove the note from the array
+            lockedNotes.splice(noteIndex, 1);
+            localStorage.setItem('lockedNotes', JSON.stringify(lockedNotes)); // Save updated notes
+            renderLockedNotes(); // Re-render the notes to reflect the deletion
+            showNotification('Note deleted successfully!');
+        } else {
+            showNotification('Deletion canceled.');
+        }
+    } else {
+        showNotification('Note not found.');
+    }
+}
+
+// Function to show notifications
+function showNotification(message) {
+    const notification = document.getElementById('notification');
+    notification.innerText = message;
+    notification.style.display = 'block';
+
+    // Hide the notification after 2 seconds
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 2000);
+}
+
+// Initialize Google Sign-in when page loads
+window.onload = initGoogleSignIn;
 
 // Replace the existing initial loads with initializeApp()
 window.onload = initializeApp;
 
+function loadLockedNotes() {
+    const storedNotes = localStorage.getItem('lockedNotes');
+    if (storedNotes) {
+        lockedNotes = JSON.parse(storedNotes);
+    } else {
+        lockedNotes = []; // Initialize as an empty array if no notes are found
+    }
+}
+
   </script>
+  <div id="notification" style="display: none; position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #4c8eaf; color: white; padding: 10px 20px; border-radius: 5px; z-index: 1000;">
+</div>
 </body>
 </html>
