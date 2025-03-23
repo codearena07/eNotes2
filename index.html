@@ -1411,10 +1411,14 @@ body {
   
     <!-- Images Section -->
     <div class="note-section" id="imagesSection"> <!-- Ensure this is a note-section -->
-        <h1>Images</h1>
-       
+        <h1>Secured Images</h1>
+        <!-- Authentication Section -->
+        <div class="auth-section" id="authSection">
+            <input type="password" id="passwordInput" placeholder="Enter your secret password">
+            <button onclick="initializeVault()"><i class="fas fa-unlock"></i> Unlock Vault</button>
+        </div>
         <!-- Main Content -->
-        <div id="mainContent">
+        <div id="mainContent" class="hidden">
             <input type="file" id="imageInput" accept="image" multiple hidden onchange="uploadImages()">
             <button class="choose-files-btn" onclick="document.getElementById('imageInput').click()">
                 <i class="fas fa-cloud-upload-alt"></i>
